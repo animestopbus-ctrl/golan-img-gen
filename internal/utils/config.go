@@ -15,7 +15,7 @@ func LoadConfig() Config {
 	return Config{
 		BotToken:     getEnv("BOT_TOKEN", ""),
 		MongoURI:     getEnv("MONGO_URI", ""),
-		PythonAPIURL: getEnv("PYTHON_API_URL", "http://localhost:8000/generate"),
+		PythonAPIURL: getEnv("PYTHON_API_URL", ""),
 	}
 }
 
@@ -28,4 +28,5 @@ func getEnv(key, defaultVal string) string {
 		return defaultVal
 	}
 	return val
+
 }

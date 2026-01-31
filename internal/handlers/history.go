@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/yourusername/image-generator-bot/internal/database"
-	"github.com/yourusername/image-generator-bot/internal/utils"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/database"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/utils"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -32,4 +32,5 @@ func HandleHistory(bot *tgbotapi.BotAPI, message *tgbotapi.Message, db *mongo.Cl
 	}
 
 	bot.Send(tgbotapi.NewMessage(message.Chat.ID, sb.String()))
+
 }

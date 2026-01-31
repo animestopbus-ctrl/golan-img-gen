@@ -22,7 +22,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
-	defer dbClient.Disconnect(context.Background())
+	defer func() {
+		if err := dbClient.Disconnect(context.Background()); err != nil {
+			log.Printf("Failed to disconnect MongoDB: %v", err)
+		}
+	}()
 
 	// Init bot
 	bot, err := tgbotapi.NewBotAPI(config.BotToken)
@@ -57,7 +61,10 @@ func main() {
 			case "history":
 				handlers.HandleHistory(bot, update.Message, dbClient)
 			default:
-				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Unknown command. Use /start, /generate, or /history."))
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Unknown command. Use /start, /generate, or /history.")
+				if _, err := bot.Send(msg); err != nil {
+					log.Printf("Failed to send message: %v", err)
+				}
 			}
 		}
 	}()

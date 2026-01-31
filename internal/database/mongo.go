@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yourusername/image-generator-bot/internal/models"
-	"github.com/yourusername/image-generator-bot/internal/utils"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/models"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -132,4 +132,5 @@ func GetUserHistory(ctx context.Context, client *mongo.Client, userID int64, lim
 		return nil, err
 	}
 	return histories, nil
+
 }

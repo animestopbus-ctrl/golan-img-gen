@@ -1,7 +1,0 @@
-github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 h1:v4apW+PuOPV1/vkOHK62cK/X9ca6u9q23P0LNp8I9SBw=
-github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1/go.mod h1:A2S0CWkNylOTWyGdY13h0bzLkjaKHDAbrKKrqyJALyI0=
-go.mongodb.org/mongo-driver v1.13.1 h1:YIc7HTYsKndGK4qi0De2W3+3N2KULZ4O9KOAasWmwulw=
-go.mongodb.org/mongo-driver v1.13.1/go.mod h1:wc5Pk02KBiJf0m4TEapajD+7V6VKArU0gGcpuUZOvZOM=
-github.com/golang/snappy v0.0.1 h1:Qgr9rKWwg2eriws08/0LnzuL6nmPgy7cpDDP8mW4C88Y=
-github.com/golang/snappy v0.0.1/go.mod h1:TIwSnHyEojZa+OqNMLkl3IH5/9hiVldweH+XMxyNnSms=
-# ... (other indirect deps omitted for brevity; run go mod tidy)

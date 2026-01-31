@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/yourusername/image-generator-bot/internal/utils"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/utils"
 )
 
 // FetchPicsumImage gets random 1920x1080 image
@@ -28,4 +28,5 @@ func FetchPicsumImage() ([]byte, error) {
 
 	utils.LogInfo("Picsum image fetched")
 	return body, nil
+
 }

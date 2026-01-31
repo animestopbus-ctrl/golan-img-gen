@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -42,5 +43,4 @@ func GenerateAIImage(ctx context.Context, apiURL, prompt string) ([]byte, error)
 
 	utils.LogInfo("AI image generated successfully")
 	return body, nil
-
 }

@@ -10,10 +10,10 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/yourusername/image-generator-bot/internal/database"
-	"github.com/yourusername/image-generator-bot/internal/models"
-	"github.com/yourusername/image-generator-bot/internal/services"
-	"github.com/yourusername/image-generator-bot/internal/utils"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/database"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/models"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/services"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/utils"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -91,4 +91,5 @@ func HandleGenerate(ctx context.Context, bot *tgbotapi.BotAPI, message *tgbotapi
 			utils.LogError("Failed to update DB after generation", err)
 		}
 	}
+
 }

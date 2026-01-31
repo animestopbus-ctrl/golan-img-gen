@@ -1,46 +1,67 @@
-package services
+package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/LastPerson07/image-generator-bot/internal/utils"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/database"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/handlers"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/utils"
 )
 
-// GenerateAIImage calls Python API
-func GenerateAIImage(ctx context.Context, apiURL, prompt string) ([]byte, error) {
-	reqBody, err := json.Marshal(map[string]string{"prompt": prompt})
+func main() {
+	config := utils.LoadConfig()
+
+	// Init MongoDB
+	dbClient, err := database.NewMongoClient(config.MongoURI)
 	if err != nil {
-		return nil, err
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
+	defer dbClient.Disconnect(context.Background())
 
-	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(reqBody))
+	// Init bot
+	bot, err := tgbotapi.NewBotAPI(config.BotToken)
 	if err != nil {
-		return nil, err
+		log.Fatalf("Failed to create bot: %v", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	bot.Debug = false
 
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	updateConfig := tgbotapi.NewUpdate(0)
+	updateConfig.Timeout = 60
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API error: %d", resp.StatusCode)
-	}
+	updates := bot.GetUpdatesChan(updateConfig)
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+	// Graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	utils.LogInfo("AI image generated successfully")
-	return body, nil
+	go func() {
+		for update := range updates {
+			if update.Message == nil {
+				continue
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+
+			switch update.Message.Command() {
+			case "start":
+				handlers.HandleStart(bot, update.Message)
+			case "generate":
+				handlers.HandleGenerate(ctx, bot, update.Message, dbClient, config.PythonAPIURL)
+			case "history":
+				handlers.HandleHistory(bot, update.Message, dbClient)
+			default:
+				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Unknown command. Use /start, /generate, or /history."))
+			}
+		}
+	}()
+
+	<-sigChan
+	log.Println("Shutting down...")
 }

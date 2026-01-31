@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/animestopbus-ctrl/image-generator-bot/internal/database"
@@ -13,6 +14,7 @@ import (
 
 func HandleHistory(bot *tgbotapi.BotAPI, message *tgbotapi.Message, db *mongo.Client) {
 	ctx := context.Background()
+
 	histories, err := database.GetUserHistory(ctx, db, message.From.ID, 10)
 	if err != nil {
 		utils.LogError("Failed to get history", err)
@@ -27,10 +29,17 @@ func HandleHistory(bot *tgbotapi.BotAPI, message *tgbotapi.Message, db *mongo.Cl
 
 	var sb strings.Builder
 	sb.WriteString("Your last generations:\n")
+
 	for i, h := range histories {
-		sb.WriteString(fmt.Sprintf("%d. %s (%s)\n", i+1, h.Prompt, h.Timestamp.Format(time.RFC822)))
+		sb.WriteString(
+			fmt.Sprintf(
+				"%d. %s (%s)\n",
+				i+1,
+				h.Prompt,
+				h.Timestamp.Format(time.RFC822),
+			),
+		)
 	}
 
 	bot.Send(tgbotapi.NewMessage(message.Chat.ID, sb.String()))
-
 }

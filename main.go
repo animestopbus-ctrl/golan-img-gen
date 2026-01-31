@@ -1,74 +1,46 @@
-package main
+package services
 
 import (
+	"bytes"
 	"context"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/yourusername/image-generator-bot/internal/database"
-	"github.com/yourusername/image-generator-bot/internal/handlers"
-	"github.com/yourusername/image-generator-bot/internal/utils"
+	"github.com/LastPerson07/image-generator-bot/internal/utils"
 )
 
-func main() {
-	config := utils.LoadConfig()
-
-	// Init MongoDB
-	dbClient, err := database.NewMongoClient(config.MongoURI)
+// GenerateAIImage calls Python API
+func GenerateAIImage(ctx context.Context, apiURL, prompt string) ([]byte, error) {
+	reqBody, err := json.Marshal(map[string]string{"prompt": prompt})
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		return nil, err
 	}
-	defer func() {
-		if err := dbClient.Disconnect(context.Background()); err != nil {
-			log.Printf("Failed to disconnect MongoDB: %v", err)
-		}
-	}()
 
-	// Init bot
-	bot, err := tgbotapi.NewBotAPI(config.BotToken)
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		log.Fatalf("Failed to create bot: %v", err)
+		return nil, err
 	}
-	bot.Debug = false
+	req.Header.Set("Content-Type", "application/json")
 
-	updateConfig := tgbotapi.NewUpdate(0)
-	updateConfig.Timeout = 60
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 
-	updates := bot.GetUpdatesChan(updateConfig)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API error: %d", resp.StatusCode)
+	}
 
-	// Graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
-	go func() {
-		for update := range updates {
-			if update.Message == nil {
-				continue
-			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-			defer cancel()
-
-			switch update.Message.Command() {
-			case "start":
-				handlers.HandleStart(bot, update.Message)
-			case "generate":
-				handlers.HandleGenerate(ctx, bot, update.Message, dbClient, config.PythonAPIURL)
-			case "history":
-				handlers.HandleHistory(bot, update.Message, dbClient)
-			default:
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Unknown command. Use /start, /generate, or /history.")
-				if _, err := bot.Send(msg); err != nil {
-					log.Printf("Failed to send message: %v", err)
-				}
-			}
-		}
-	}()
-
-	<-sigChan
-	log.Println("Shutting down...")
+	utils.LogInfo("AI image generated successfully")
+	return body, nil
 }

@@ -14,21 +14,12 @@ FROM python:3.10-slim AS py-builder
 WORKDIR /py
 COPY py_server/requirements.txt .
 
-# Install torch from PyTorch CPU index (split to avoid index conflicts)
+# Install from your updated requirements.txt (assumes it has compatible pins)
+# Pre-install torch CPU wheels if not in requirements.txt (to ensure CPU versions)
 RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir --prefix=/install --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2
-
-# Install the rest from PyPI (compatible older stack)
-RUN pip install --no-cache-dir --prefix=/install \
-    diffusers==0.24.0 \
-    transformers==4.36.2 \
-    accelerate==0.25.0 \
-    huggingface_hub==0.16.4 \
-    numpy==1.26.4
-
-# Install anything extra from your requirements.txt (will override if conflicts, but pins above take priority)
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+    torch torchvision torchaudio \
+ && pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # Final image
 FROM python:3.10-slim

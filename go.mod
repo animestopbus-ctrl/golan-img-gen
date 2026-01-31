@@ -1,4 +1,4 @@
-module github.com/yourusername/image-generator-bot
+module github.com/animestopbus-ctrl/image-generator-bot
 
 go 1.21
 

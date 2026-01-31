@@ -1,10 +1,10 @@
 # Stage 1: Build Go binary
-FROM golang:1.21-alpine AS go-builder
+FROM golang:1.22-alpine AS go-builder
 WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
+COPY go.mod ./
+RUN go mod tidy && go mod download && go mod verify
 COPY . .
-RUN go build -o /app/bot main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bot main.go
 
 # Stage 2: Python base with dependencies
 FROM python:3.10-slim AS py-builder

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yourusername/image-generator-bot/internal/utils"
+	"github.com/animestopbus-ctrl/image-generator-bot/internal/utils"
 )
 
 // GenerateAIImage calls Python API
@@ -42,4 +42,5 @@ func GenerateAIImage(ctx context.Context, apiURL, prompt string) ([]byte, error)
 
 	utils.LogInfo("AI image generated successfully")
 	return body, nil
+
 }

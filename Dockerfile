@@ -14,46 +14,41 @@ FROM python:3.10-slim AS py-builder
 WORKDIR /py
 COPY py_server/requirements.txt .
 
-# Install compatible pinned versions to avoid breaking changes
-# - torch CPU wheels
-# - diffusers/huggingface_hub versions before cached_download removal
-# - NumPy 1.x to avoid torch NumPy 2 incompatibility
+# Install torch from PyTorch CPU index (split to avoid index conflicts)
 RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir --prefix=/install \
-    "torch==2.1.2" "torchvision==0.16.2" "torchaudio==2.1.2" --index-url https://download.pytorch.org/whl/cpu \
+ && pip install --no-cache-dir --prefix=/install --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2
+
+# Install the rest from PyPI (compatible older stack)
+RUN pip install --no-cache-dir --prefix=/install \
     diffusers==0.24.0 \
     transformers==4.36.2 \
     accelerate==0.25.0 \
     huggingface_hub==0.16.4 \
-    numpy==1.26.4 \
- && pip install --no-cache-dir --prefix=/install -r requirements.txt
+    numpy==1.26.4
 
-# Final image: slim Python runtime + supervisor + app
+# Install anything extra from your requirements.txt (will override if conflicts, but pins above take priority)
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Final image
 FROM python:3.10-slim
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
-# Install supervisor and ca-certificates (needed for HTTPS/HF hub)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends supervisor ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy Go binary
 COPY --from=go-builder /app/bot /app/bot
 RUN chmod +x /app/bot
 
-# Copy installed Python packages
 COPY --from=py-builder /install /usr/local
 
-# Copy source and supervisor config
 COPY py_server /app/py_server
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Make py_server a proper package
 RUN touch /app/py_server/__init__.py
 
-# Expose the port your API listens on (change if needed)
 EXPOSE 1000
 
-# Run supervisord in foreground
 CMD ["supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

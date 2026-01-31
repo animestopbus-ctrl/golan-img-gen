@@ -1,11 +1,8 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -18,7 +15,13 @@ import (
 )
 
 // HandleGenerate processes /generate command
-func HandleGenerate(ctx context.Context, bot *tgbotapi.BotAPI, message *tgbotapi.Message, db *mongo.Client, apiURL string) {
+func HandleGenerate(
+	ctx context.Context,
+	bot *tgbotapi.BotAPI,
+	message *tgbotapi.Message,
+	db *mongo.Client,
+	apiURL string,
+) {
 	userID := message.From.ID
 	prompt := strings.TrimSpace(message.CommandArguments())
 
@@ -48,9 +51,11 @@ func HandleGenerate(ctx context.Context, bot *tgbotapi.BotAPI, message *tgbotapi
 		return
 	}
 
-	var imageBytes []byte
-	var caption string
-	var isAI bool
+	var (
+		imageBytes []byte
+		caption    string
+		isAI       bool
+	)
 
 	if prompt == "" {
 		// Fallback to Picsum
@@ -65,31 +70,54 @@ func HandleGenerate(ctx context.Context, bot *tgbotapi.BotAPI, message *tgbotapi
 
 	if err != nil {
 		utils.LogError("Image generation failed", err)
-		editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, sentMsg.MessageID, "Failed to generate image. Try again.")
+		editMsg := tgbotapi.NewEditMessageText(
+			message.Chat.ID,
+			sentMsg.MessageID,
+			"Failed to generate image. Try again.",
+		)
 		bot.Send(editMsg)
 		return
 	}
 
 	// Send photo
-	photo := tgbotapi.NewPhoto(message.Chat.ID, tgbotapi.FileBytes{Name: "image.png", Bytes: imageBytes})
+	photo := tgbotapi.NewPhoto(
+		message.Chat.ID,
+		tgbotapi.FileBytes{
+			Name:  "image.png",
+			Bytes: imageBytes,
+		},
+	)
 	photo.Caption = caption
+
 	_, err = bot.Send(photo)
 	if err != nil {
 		utils.LogError("Failed to send photo", err)
-		editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, sentMsg.MessageID, "Failed to send image.")
+		editMsg := tgbotapi.NewEditMessageText(
+			message.Chat.ID,
+			sentMsg.MessageID,
+			"Failed to send image.",
+		)
 		bot.Send(editMsg)
 		return
 	}
 
-	// Delete waiting message
-	bot.DeleteMessage(tgbotapi.DeleteMessageConfig{ChatID: message.Chat.ID, MessageID: sentMsg.MessageID})
+	// ✅ Correct way to delete message
+	deleteMsg := tgbotapi.NewDeleteMessage(
+		message.Chat.ID,
+		sentMsg.MessageID,
+	)
+	_, _ = bot.Request(deleteMsg)
 
 	if isAI {
-		// Update DB
-		err = database.UpdateUserAfterGeneration(ctx, db, &models.User{UserID: userID}, prompt, time.Now())
+		err = database.UpdateUserAfterGeneration(
+			ctx,
+			db,
+			&models.User{UserID: userID},
+			prompt,
+			time.Now(),
+		)
 		if err != nil {
 			utils.LogError("Failed to update DB after generation", err)
 		}
 	}
-
 }

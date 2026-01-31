@@ -1,3 +1,4 @@
+# Stage 1: build Go binary
 FROM golang:1.22 as go-builder
 WORKDIR /src
 # cache modules first
@@ -7,33 +8,52 @@ RUN go env -w GO111MODULE=on \
 # copy rest and build
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bot main.go
+
 # Stage 2: build Python packages into /install
 FROM python:3.10-slim AS py-builder
 WORKDIR /py
 COPY py_server/requirements.txt .
-# install into a transient /install directory so we can copy into final
+
+# Install compatible pinned versions to avoid breaking changes
+# - torch CPU wheels
+# - diffusers/huggingface_hub versions before cached_download removal
+# - NumPy 1.x to avoid torch NumPy 2 incompatibility
 RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir --prefix=/install \
+    "torch==2.1.2" "torchvision==0.16.2" "torchaudio==2.1.2" --index-url https://download.pytorch.org/whl/cpu \
+    diffusers==0.24.0 \
+    transformers==4.36.2 \
+    accelerate==0.25.0 \
+    huggingface_hub==0.16.4 \
+    numpy==1.26.4 \
  && pip install --no-cache-dir --prefix=/install -r requirements.txt
-# Final image: Python runtime + supervisor + our app
+
+# Final image: slim Python runtime + supervisor + app
 FROM python:3.10-slim
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
-# install supervisor and any system deps your python packages need
+
+# Install supervisor and ca-certificates (needed for HTTPS/HF hub)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends supervisor ca-certificates \
  && rm -rf /var/lib/apt/lists/*
-# Copy go binary from builder and make it executable
+
+# Copy Go binary
 COPY --from=go-builder /app/bot /app/bot
 RUN chmod +x /app/bot
-# Copy python libraries installed into /install by py-builder into system site-packages
-# NOTE: target path may vary by python minor version — this uses the typical path for 3.10-slim
+
+# Copy installed Python packages
 COPY --from=py-builder /install /usr/local
-# Copy python server sources and supervisor config
+
+# Copy source and supervisor config
 COPY py_server /app/py_server
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-# Ensure py_server is a package (add __init__.py if not present)
+
+# Make py_server a proper package
 RUN touch /app/py_server/__init__.py
-# Expose ports used by python/gRPC etc (if any)
-# EXPOSE 8000
-# Run supervisord in foreground so container stays alive on Render
+
+# Expose the port your API listens on (change if needed)
+EXPOSE 1000
+
+# Run supervisord in foreground
 CMD ["supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
